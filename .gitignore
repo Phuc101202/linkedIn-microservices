@@ -1,0 +1,102 @@
+﻿# ============================================================
+# .gitignore for LinkedIn Microservices
+# Java 17 | Spring Boot | Maven | Docker
+# ============================================================
+
+# --- Maven build output ---
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# --- Compiled class files ---
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+
+# --- Spring Boot config with secrets (NEVER commit!) ---
+**/src/main/resources/application.yml
+**/src/main/resources/application.yaml
+**/src/main/resources/application.properties
+**/src/main/resources/application-*.yml
+**/src/main/resources/application-*.yaml
+**/src/main/resources/application-*.properties
+
+# Keep example/template config files
+!**/src/main/resources/application.example.yml
+!**/src/main/resources/application.example.properties
+
+# --- IDE: IntelliJ IDEA ---
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# --- IDE: Eclipse ---
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+# --- IDE: VS Code ---
+.vscode/settings.json
+.vscode/tasks.json
+.vscode/launch.json
+.vscode/extensions.json
+*.code-workspace
+
+# --- OS generated ---
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# --- Logs ---
+*.log
+logs/
+log/
+spring.log
+
+# --- Docker overrides ---
+docker-compose.override.yml
+.docker/
+
+# --- Environment & Secrets ---
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets/
+credentials/
+
+# --- AWS credentials ---
+.aws/
+aws-credentials.json
+
+# --- Kafka / local data ---
+kafka-logs/
+zookeeper-data/
+
+# --- Test reports ---
+surefire-reports/
+jacoco.exec
+coverage/
+
+# --- Maven wrapper (keep) ---
+!.mvn/wrapper/maven-wrapper.properties
+!.mvn/wrapper/maven-wrapper.jar
+
+# --- Patch / backup files ---
+*.orig
+*.patch
+*.swp
+*.swo
+*~
+nohup.out
