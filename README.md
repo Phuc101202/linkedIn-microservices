@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
 
 # 🔗 LinkedIn Microservices
 
@@ -12,7 +12,6 @@
 [![AWS S3](https://img.shields.io/badge/AWS_S3-SDK_v2-FF9900?style=for-the-badge&logo=amazon-s3&logoColor=white)](https://aws.amazon.com/s3/)
 [![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?style=for-the-badge&logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 
 </div>
 
@@ -42,30 +41,35 @@
 ## 🏗️ System Architecture
 
 ```mermaid
-graph TB
-    Client(["🌐 Client Web / Mobile"])
+graph LR
+    Client(["Client"])
 
-    subgraph Gateway["🚪 API Gateway :8080"]
-        GW["Spring Cloud Gateway + JWT Validation + Redis Rate Limiting"]
+    subgraph GW_BOX["API Gateway :8080"]
+        GW["Spring Cloud Gateway\nJWT Validation · Rate Limit"]
     end
 
-    subgraph Services["⚙️ Microservices"]
-        US["👤 User Service :8081"]
-        PS["📝 Post Service :8082"]
-        FS["📡 Feed Service :8083"]
-        SS["🔍 Search Service :8084"]
-        NS["🔔 Notification Service :8085"]
+    subgraph SVC["Microservices"]
+        direction TB
+        US["User Service\n:8081"]
+        PS["Post Service\n:8082"]
+        FS["Feed Service\n:8083"]
+        SS["Search Service\n:8084"]
+        NS["Notification Service\n:8085"]
     end
 
-    subgraph Infra["🗄️ Infrastructure"]
-        KAFKA["📨 Apache Kafka KRaft mode"]
-        REDIS["⚡ Redis Cache and Rate Limit"]
-        ES["🔍 Elasticsearch Search Index"]
-        MYSQL["🗃️ MySQL 8.0 Persistent Data"]
-        S3["☁️ AWS S3 Media Storage"]
+    subgraph MSG["Messaging"]
+        KAFKA["Apache Kafka\nKRaft"]
     end
 
-    Client -->|HTTPS| Gateway
+    subgraph STORE["Data Stores"]
+        direction TB
+        MYSQL["MySQL 8.0"]
+        REDIS["Redis"]
+        ES["Elasticsearch"]
+        S3["AWS S3"]
+    end
+
+    Client -->|HTTPS| GW
     GW --> US
     GW --> PS
     GW --> FS
@@ -73,18 +77,19 @@ graph TB
     GW --> NS
 
     US -->|user.created| KAFKA
-    PS -->|post.created post.liked| KAFKA
-    KAFKA -->|Consume| FS
-    KAFKA -->|Consume| SS
-    KAFKA -->|Consume| NS
+    PS -->|"post.created\npost.liked"| KAFKA
 
-    GW --- REDIS
-    FS --- REDIS
-    SS --- ES
-    US --- MYSQL
-    PS --- MYSQL
-    US --- S3
-    PS --- S3
+    KAFKA -->|consume| FS
+    KAFKA -->|consume| SS
+    KAFKA -->|consume| NS
+
+    US --> MYSQL
+    PS --> MYSQL
+    GW --> REDIS
+    FS --> REDIS
+    SS --> ES
+    US --> S3
+    PS --> S3
 ```
 
 ### 🔄 Request Lifecycle — User Registration
@@ -218,6 +223,72 @@ Before you begin, ensure you have the following installed:
 
 ---
 
+## 🔑 Kafka Topics Reference
+
+| Topic | Producer | Consumers | Description |
+|---|---|---|---|
+| `user.created` | User Service | Search, Notification | New user registered |
+| `post.created` | Post Service | Feed, Search, Notification | New post published |
+| `post.liked` | Post Service | Notification | Post received a like |
+| `connection.requested` | User Service | Notification | Connection request sent |
+
+---
+
+## 🏛️ Architecture Deep Dive
+
+### API Gateway
+
+The only publicly exposed service on port `8080`. Responsibilities:
+- **JWT Validation**: Validates every request except `/auth/**`. Extracts `userId` and injects it as `X-User-Id` header for downstream services.
+- **Rate Limiting**: Uses Redis sorted sets to enforce per-user request limits.
+- **Routing**: Path-based routing to appropriate microservices using Spring Cloud Gateway MVC.
+
+### User Service
+
+Two main domains:
+1. **Authentication** (`AuthService`): BCrypt password hashing, JWT issuance (access: 24h, refresh: 7 days), publishes `user.created` to Kafka.
+2. **Social Graph** (`Connection`): LinkedIn-style connection requests with `PENDING → CONNECTED` state machine.
+3. **Media**: Profile photo & cover upload via AWS SDK v2 S3Service.
+
+### Post Service
+
+Core content engine:
+- Posts stored in MySQL, linked to `authorId` (microservice data isolation — no cross-service JOINs).
+- `Like` and `Comment` entities with denormalized counts for fast reads.
+- All write operations publish Kafka events for downstream fan-out.
+
+### Feed Service
+
+Implements **Fanout-on-Write** pattern:
+- Listens to `post.created` Kafka events.
+- Fans out to every follower's Redis sorted set (score = timestamp).
+- Feed reads are pure Redis cache hits — zero database queries at read time.
+- Uses OpenFeign to call User Service for follower list resolution.
+
+### Search Service
+
+- Consumes `user.created` and `post.created` Kafka events.
+- Indexes documents into Elasticsearch with full-text search capability.
+- Supports fuzzy matching on names, headlines, skills, and post content.
+
+### Notification Service
+
+- Pure Kafka consumer — stateless and horizontally scalable.
+- Processes all domain events asynchronously to deliver notifications.
+
+---
+
+## 🔧 Troubleshooting
+
+| Problem | Solution |
+|---|---|
+| `Connection refused: localhost:9092` | Run `docker-compose up -d` |
+| `Access denied for MySQL` | Wait for container to be healthy: `docker ps` |
+| `JWT signature does not match` | Ensure all services share the exact same `jwt.secret` |
+| Elasticsearch not indexing | Check health: `curl http://localhost:9200/_cluster/health` |
+| Redis connection failed | Verify: `docker exec -it redis redis-cli ping` |
+
+---
 ## 🚀 Installation & Setup
 
 ### Step 1 — Clone the Repository
@@ -405,158 +476,9 @@ curl http://localhost:8085/actuator/health   # Notification Service
 
 ---
 
-## 📘 API Usage
+<div align ="center">
 
-### Register a New User
-
-```bash
-curl -X POST http://localhost:8080/api/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "firstName": "John",
-    "lastName": "Doe",
-    "email": "john.doe@example.com",
-    "password": "SecurePass123!",
-    "headline": "Senior Software Engineer",
-    "location": "Ho Chi Minh City, Vietnam"
-  }'
-```
-
-**Response:**
-
-```json
-{
-  "userId": "550e8400-e29b-41d4-a716-446655440000",
-  "email": "john.doe@example.com",
-  "firstName": "John",
-  "lastName": "Doe",
-  "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
-  "refreshToken": "eyJhbGciOiJIUzI1NiJ9..."
-}
-```
-
-### Login
-
-```bash
-curl -X POST http://localhost:8080/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "john.doe@example.com",
-    "password": "SecurePass123!"
-  }'
-```
-
-### Create a Post
-
-```bash
-curl -X POST http://localhost:8080/api/v1/posts \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  -d '{"content": "Excited to share my new microservices project! 🚀"}'
-```
-
-### Search Users/Posts
-
-```bash
-curl "http://localhost:8080/api/v1/search?q=software+engineer&type=people" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
-```
-
-### Get Personalized Feed
-
-```bash
-curl http://localhost:8080/api/v1/feed \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
-```
-
----
-
-## 🔑 Kafka Topics Reference
-
-| Topic | Producer | Consumers | Description |
-|---|---|---|---|
-| `user.created` | User Service | Search, Notification | New user registered |
-| `post.created` | Post Service | Feed, Search, Notification | New post published |
-| `post.liked` | Post Service | Notification | Post received a like |
-| `connection.requested` | User Service | Notification | Connection request sent |
-
----
-
-## 🏛️ Architecture Deep Dive
-
-### API Gateway
-
-The only publicly exposed service on port `8080`. Responsibilities:
-- **JWT Validation**: Validates every request except `/auth/**`. Extracts `userId` and injects it as `X-User-Id` header for downstream services.
-- **Rate Limiting**: Uses Redis sorted sets to enforce per-user request limits.
-- **Routing**: Path-based routing to appropriate microservices using Spring Cloud Gateway MVC.
-
-### User Service
-
-Two main domains:
-1. **Authentication** (`AuthService`): BCrypt password hashing, JWT issuance (access: 24h, refresh: 7 days), publishes `user.created` to Kafka.
-2. **Social Graph** (`Connection`): LinkedIn-style connection requests with `PENDING → CONNECTED` state machine.
-3. **Media**: Profile photo & cover upload via AWS SDK v2 S3Service.
-
-### Post Service
-
-Core content engine:
-- Posts stored in MySQL, linked to `authorId` (microservice data isolation — no cross-service JOINs).
-- `Like` and `Comment` entities with denormalized counts for fast reads.
-- All write operations publish Kafka events for downstream fan-out.
-
-### Feed Service
-
-Implements **Fanout-on-Write** pattern:
-- Listens to `post.created` Kafka events.
-- Fans out to every follower's Redis sorted set (score = timestamp).
-- Feed reads are pure Redis cache hits — zero database queries at read time.
-- Uses OpenFeign to call User Service for follower list resolution.
-
-### Search Service
-
-- Consumes `user.created` and `post.created` Kafka events.
-- Indexes documents into Elasticsearch with full-text search capability.
-- Supports fuzzy matching on names, headlines, skills, and post content.
-
-### Notification Service
-
-- Pure Kafka consumer — stateless and horizontally scalable.
-- Processes all domain events asynchronously to deliver notifications.
-
----
-
-## 🔧 Troubleshooting
-
-| Problem | Solution |
-|---|---|
-| `Connection refused: localhost:9092` | Run `docker-compose up -d` |
-| `Access denied for MySQL` | Wait for container to be healthy: `docker ps` |
-| `JWT signature does not match` | Ensure all services share the exact same `jwt.secret` |
-| Elasticsearch not indexing | Check health: `curl http://localhost:9200/_cluster/health` |
-| Redis connection failed | Verify: `docker exec -it redis redis-cli ping` |
-
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch: `git checkout -b feature/amazing-feature`
-3. Commit your changes: `git commit -m 'feat: add amazing feature'`
-4. Push to the branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
-
----
-
-## 📄 License
-
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
-
----
-
-<div align="center">
-
-Made with ❤️ by **Lam Minh Phuc**
+Made by **Lam Minh Phuc**
 
 ⭐ Star this repo if you find it helpful!
 

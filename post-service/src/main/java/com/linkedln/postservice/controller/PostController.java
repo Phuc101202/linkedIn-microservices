@@ -9,7 +9,6 @@ import com.linkedln.postservice.entity.Comment;
 import com.linkedln.postservice.entity.Post;
 import com.linkedln.postservice.service.PostService;
 
-import io.micrometer.core.ipc.http.HttpSender.Response;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -18,7 +17,7 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
@@ -67,10 +66,17 @@ public class PostController {
                 .body(postService.addComment(postId, authorId, content));
     }
 
+    @DeleteMapping("/{postId}")
     public ResponseEntity<String> deletePost(
             @PathVariable String postId,
             @RequestParam String userId) {
         postService.deletePost(postId, userId);
         return ResponseEntity.ok("Post deleted");
     }
+
+    @GetMapping("/{postId}/comments")
+    public ResponseEntity<List<Comment>> getMethodName(@PathVariable String postId) {
+        return ResponseEntity.ok(postService.getComments(postId));
+    }
+
 }

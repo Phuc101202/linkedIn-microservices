@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.linkedln.userservice.dto.UserResponse;
 import com.linkedln.userservice.service.UserService;
@@ -62,7 +63,18 @@ public class UserController {
         return ResponseEntity.ok(userService.updateProfile(userId, request));
     }
 
-    // PENDING ENDPOINT
+    @PostMapping("/{userId}/profile-photo")
+    public ResponseEntity<UserResponse> uploadProfilePhoto(
+            @PathVariable String userId,
+            @RequestHeader("X-user-Id") String requestUserId,
+            @RequestParam("file") MultipartFile file) {
+        if (!userId.equals(requestUserId)) {
+            return ResponseEntity.status(403).build();
+        }
+
+        return ResponseEntity.ok(
+                userService.uploadProfilePhoto(userId, file));
+    }
 
     /**
      * Send connection request
