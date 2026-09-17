@@ -32,13 +32,13 @@ public class AuthService {
     private final BCryptPasswordEncoder passwordEncoder;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    @Value("{jwt.secret}")
+    @Value("${jwt.secret}")
     private String secretKey;
 
-    @Value("{jwt.expiration}")
+    @Value("${jwt.expiration}")
     private long jwtExpiration;
 
-    @Value("{jwt.refresh-expiration}")
+    @Value("${jwt.refresh-expiration}")
     private long refreshExpiration;
 
     private static final String USER_CREATED_TOPIC = "user.created";

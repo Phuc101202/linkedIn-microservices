@@ -80,7 +80,11 @@ public class UserService {
         return "Connection accepted";
     }
 
-    public List<UserResponse> getConnection(String userId) {
+    public List<Connection> getPendingConnections(String userId) {
+        return connectionRepository.findByReceiverIdAndStatus(userId, ConnectionStatus.PENDING);
+    }
+
+    public List<UserResponse> getConnections(String userId) {
         List<Connection> connections = connectionRepository
                 .findByRequesterIdAndStatus(userId, ConnectionStatus.CONNECTED);
         return connections.stream()

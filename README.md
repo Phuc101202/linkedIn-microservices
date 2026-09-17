@@ -1,4 +1,4 @@
-<div align="center">
+﻿<div align="center">
 
 # 🔗 LinkedIn Microservices
 
@@ -241,7 +241,7 @@ Before you begin, ensure you have the following installed:
 The only publicly exposed service on port `8080`. Responsibilities:
 - **JWT Validation**: Validates every request except `/auth/**`. Extracts `userId` and injects it as `X-User-Id` header for downstream services.
 - **Rate Limiting**: Uses Redis sorted sets to enforce per-user request limits.
-- **Routing**: Path-based routing to appropriate microservices using Spring Cloud Gateway MVC.
+- **Routing**: Path-based routing to appropriate microservices using Spring Cloud Gateway (WebFlux).
 
 ### User Service
 
@@ -294,7 +294,7 @@ Implements **Fanout-on-Write** pattern:
 ### Step 1 — Clone the Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/linkedin-microservices.git
+git clone https://github.com/Phuc101202/linkedin-microservices.git
 cd linkedin-microservices
 ```
 
@@ -415,7 +415,7 @@ spring:
 
 **`api-gateway/src/main/resources/application.yml`**:
 
-```yaml
+`yaml
 server:
   port: 8080
 spring:
@@ -423,33 +423,11 @@ spring:
     redis:
       host: localhost
       port: 6379
-  cloud:
-    gateway:
-      mvc:
-        routes:
-          - id: user-service
-            uri: http://localhost:8081
-            predicates:
-              - Path=/api/v1/auth/**, /api/v1/users/**
-          - id: post-service
-            uri: http://localhost:8082
-            predicates:
-              - Path=/api/v1/posts/**
-          - id: feed-service
-            uri: http://localhost:8083
-            predicates:
-              - Path=/api/v1/feed/**
-          - id: search-service
-            uri: http://localhost:8084
-            predicates:
-              - Path=/api/v1/search/**
-          - id: notification-service
-            uri: http://localhost:8085
-            predicates:
-              - Path=/api/v1/notifications/**
+
 jwt:
-  secret: YOUR_BASE64_ENCODED_SECRET_KEY_MINIMUM_256_BITS
-```
+  secret-key: YOUR_BASE64_ENCODED_SECRET_KEY_MINIMUM_256_BITS
+`
+> Note: Route definitions are configured programmatically in `api-gateway/src/main/java/com/linkedln/apigateway/config/GatewayConfig.java` to ensure robust loading of the JwtAuthFilter.
 
 ### Step 4 — Build and Run Each Service
 
@@ -483,3 +461,4 @@ Made by **Lam Minh Phuc**
 ⭐ Star this repo if you find it helpful!
 
 </div>
+

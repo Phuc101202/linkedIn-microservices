@@ -24,7 +24,7 @@ public class FeedEventConsumer {
     private static final String FEED_KEY_PREFIX = "feed:";
     private final RedisTemplate<String, Object> redisTemplate;
 
-    @Value("$(feed.max-size)")
+    @Value("${feed.max-size:100}")
     private int maxFeedSize;
 
     /**

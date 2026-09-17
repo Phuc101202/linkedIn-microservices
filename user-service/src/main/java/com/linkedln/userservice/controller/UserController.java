@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.linkedln.userservice.dto.UserResponse;
+import com.linkedln.userservice.entity.Connection;
 import com.linkedln.userservice.service.UserService;
 
 import lombok.RequiredArgsConstructor;
@@ -37,7 +38,7 @@ public class UserController {
     @GetMapping("/{userId}")
     public ResponseEntity<UserResponse> getUserProfile(
             @PathVariable String userId,
-            @RequestHeader("X-User_Id") String requestingUserId) {
+            @RequestHeader("X-User-Id") String requestingUserId) {
         log.info("Get profile: {} requested by: {}",
                 userId, requestingUserId);
         return ResponseEntity.ok(userService.getUserProfile(userId));
@@ -51,10 +52,10 @@ public class UserController {
      * @param requestingUserId
      * @return
      */
-    @PostMapping("/{userId}/profile")
+    @PutMapping("/{userId}/profile")
     public ResponseEntity<UserResponse> updateProfile(
             @PathVariable String userId,
-            @RequestHeader("X-User_Id") String requestingUserId,
+            @RequestHeader("X-User-Id") String requestingUserId,
             @RequestBody UserResponse request) {
         if (!userId.equals(requestingUserId)) {
             return ResponseEntity.status(403).build();
@@ -63,10 +64,10 @@ public class UserController {
         return ResponseEntity.ok(userService.updateProfile(userId, request));
     }
 
-    @PostMapping("/{userId}/profile-photo")
+    @PutMapping("/{userId}/profile-photo")
     public ResponseEntity<UserResponse> uploadProfilePhoto(
             @PathVariable String userId,
-            @RequestHeader("X-user-Id") String requestUserId,
+            @RequestHeader("X-User-Id") String requestUserId,
             @RequestParam("file") MultipartFile file) {
         if (!userId.equals(requestUserId)) {
             return ResponseEntity.status(403).build();
@@ -92,7 +93,7 @@ public class UserController {
                 targetUserId, requestingUserId));
     }
 
-    @PutMapping("path/{id}")
+    @PutMapping("/connection/{connectionId}/accept")
     public ResponseEntity<String> acceptConnection(
             @PathVariable String connectionId,
             @RequestHeader("X-User-Id") String requestingUserId) {
@@ -100,8 +101,13 @@ public class UserController {
                 userService.acceptConnectionRequest(connectionId));
     }
 
+    @GetMapping("/{userId}/connections/pending")
+    public ResponseEntity<List<Connection>> getPendingConnections(@PathVariable String userId) {
+        return ResponseEntity.ok(userService.getPendingConnections(userId));
+    }
+
     @GetMapping("/{userId}/connections")
-    public ResponseEntity<List<UserResponse>> getConnection(
+    public ResponseEntity<List<UserResponse>> getConnections(
             @PathVariable String userId) {
         return ResponseEntity.ok(
                 userService.getConnections(userId));

@@ -38,7 +38,7 @@ public class AuthController {
     /*
      * Login user
      */
-
+    @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(
             @Valid @RequestBody LoginRequest request) {
         log.info("Login request: {}", request.getEmail());

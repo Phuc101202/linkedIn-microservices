@@ -11,7 +11,9 @@ import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
-public @RequiredArgsConstructor class FeedService {
+@RequiredArgsConstructor
+
+public class FeedService {
 
     private final RedisTemplate<String, Object> redisTemplate;
     private static final String FEED_KEY_PREFIX = "feed:";
